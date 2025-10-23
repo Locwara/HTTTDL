@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gis</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="navbar">
+        <button class="nav-btn active" data-section="add-heritage-container">
+            <i class="fas fa-plus-circle"></i> Thêm mới Di tích
+        </button>
+        <button class="nav-btn" data-section="view-heritage-container">
+            <i class="fas fa-eye"></i> Xem Di tích
+        </button>
+        <button class="nav-btn" data-section="search-heritage-container">
+            <i class="fas fa-search"></i> Tìm kiếm Di tích
+        </button>
+        <a href="statistics.html" class="nav-btn">
+            <i class="fas fa-chart-bar"></i> Thống kê
+        </a>
+    </div>
+
+    <div id="main-container">
+        <div id="add-heritage-container" class="content-section active">
+            <div class="form-container">
+                <h1>Thêm mới Di tích</h1>
+                <form id="heritageForm">
+                    <div class="form-group">
+                        <label for="ten" class="form-label">Tên di tích *</label>
+                        <input type="text" id="ten" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" class="location-btn" id="selectLocationBtn">
+                            <i class="fas fa-map-marker-alt"></i> Chọn vị trí trên bản đồ
+                        </button>
+                        <div id="locationStatus" class="status-message status-info" style="display: none;">
+                            Click vào bản đồ để chọn vị trí
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dia_chi_cu_the" class="form-label">Địa chỉ cụ thể (tự động điền)</label>
+                        <textarea id="dia_chi_cu_the" class="form-textarea" placeholder="Địa chỉ đầy đủ sẽ hiện ở đây sau khi chấm bản đồ..." readonly></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tinh_tp_text" class="form-label">Tỉnh/Thành phố (tự động điền)</label>
+                        <input type="text" id="tinh_tp_text" class="form-input" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="xa_phuong_text" class="form-label">Xã/Phường (tự động điền)</label>
+                        <input type="text" id="xa_phuong_text" class="form-input" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Tọa độ (Kinh độ, Vĩ độ) *</label>
+                        <div class="coordinate-inputs">
+                            <input type="number" id="latitude" class="form-input" placeholder="Vĩ độ" step="any" required>
+                            <input type="number" id="longitude" class="form-input" placeholder="Kinh độ" step="any" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loai_hinh_id" class="form-label">Loại hình di tích</label>
+                        <select id="loai_hinh_id" class="form-select">
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="thoi_ky_id" class="form-label">Thời kỳ lịch sử</label>
+                        <select id="thoi_ky_id" class="form-select">
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ton_giao_id" class="form-label">Tôn giáo</label>
+                        <select id="ton_giao_id" class="form-select">
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hinh_anh" class="form-label">Hình ảnh</label>
+                        <input type="file" id="hinh_anh" class="form-input" multiple accept="image/*">
+                        <div id="imagePreview" class="image-preview-container"></div>
+                        <div id="uploadProgress" class="upload-progress" style="display: none;"></div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        <i class="fas fa-save"></i> Thêm di tích
+                    </button>
+                </form>
+
+                <div id="formMessage" class="status-message" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div id="view-heritage-container" class="content-section">
+            <div id="legend-container"></div>
+            <div id="view-list-container"></div>
+            <div class="loading-overlay" id="view-loading-overlay">
+                <div class="spinner"></div>
+                <div class="loading-text">Đang tải dữ liệu di tích...</div>
+            </div>
+        </div>
+
+        <div id="search-heritage-container" class="content-section">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Tìm kiếm di tích theo tên...">
+                <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i></button>
+            </div>
+            <div id="searchResultsList"></div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <button id="locate-btn" class="map-control-btn" title="Vị trí của tôi">
+                <i class="fas fa-crosshairs"></i>
+            </button>
+        </div>
+
+        <div id="directions-panel"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="config.js"></script>
+    <script type="module" src="add.js"></script>
+    <script type="module" src="view.js"></script>
+    <script type="module" src="search.js"></script>
+    <script type="module">
+        import { initAddHeritage } from './add.js';
+        import { initViewHeritages } from './view.js';
+        import { initSearchHeritages } from './search.js';
+
+        let mapInitialized = false;
+        let mapInstance; // Use a global variable for the map instance
+        let userLocationMarker = null; // Marker for user's own location
+        let routingLayer = null; // Layer for the route line
+
+        /**
+         * Renders the turn-by-turn directions into the directions panel.
+         */
+        /**
+         * Builds a human-readable instruction string from an OSRM step object.
+         */
+        function buildInstruction(step) {
+            const maneuver = step.maneuver;
+            const streetName = `<b>${step.name || 'đường không tên'}</b>`;
+            let instruction = '';
+
+            switch (maneuver.type) {
+                case 'depart':
+                    instruction = `Bắt đầu đi về hướng bắc trên ${streetName}`;
+                    break;
+                case 'turn':
+                case 'fork':
+                case 'off ramp':
+                    const modifier = {
+                        'uturn': 'Quay đầu',
+                        'sharp right': 'Rẽ gắt sang phải',
+                        'right': 'Rẽ phải',
+                        'slight right': 'Rẽ nhẹ sang phải',
+                        'straight': 'Đi thẳng',
+                        'slight left': 'Rẽ nhẹ sang trái',
+                        'left': 'Rẽ trái',
+                        'sharp left': 'Rẽ gắt sang trái',
+                    }[maneuver.modifier] || '';
+                    instruction = `${modifier} vào ${streetName}`;
+                    break;
+                case 'merge':
+                    instruction = `Nhập vào ${streetName}`;
+                    break;
+                case 'roundabout':
+                    instruction = `Đi vào bùng binh và ra ở lối thứ ${maneuver.exit}`;
+                    break;
+                case 'continue':
+                    instruction = `Tiếp tục đi trên ${streetName}`;
+                    break;
+                case 'arrive':
+                    instruction = `Bạn đã đến nơi` + (maneuver.location ? '' : ' ở bên trái');
+                    if (maneuver.modifier) {
+                        instruction = `Bạn đã đến nơi, điểm đến ở bên ${maneuver.modifier === 'left' ? 'trái' : 'phải'}`;
+                    }
+                    break;
+                default:
+                    instruction = `Đi thẳng`; // Fallback
+            }
+            return instruction;
+        }
+
+        /**
+         * Renders the turn-by-turn directions into the directions panel.
+         */
+        function renderItinerary(route) {
+            const panel = document.getElementById('directions-panel');
+            const steps = route.legs[0].steps;
+            const distance = (route.distance / 1000).toFixed(2); // OSRM provides `distance` directly on the route object
+            const time = Math.round(route.duration / 60); // OSRM provides `duration` directly on the route object
+
+            let stepsHtml = '<ol class="directions-steps">';
+            steps.forEach(step => {
+                stepsHtml += `<li class="direction-step">${buildInstruction(step)} (${(step.distance / 1000).toFixed(1)} km)</li>`;
+            });
+            stepsHtml += '</ol>';
+
+            panel.innerHTML = `
+                <div class="directions-header">
+                    <span>Chỉ đường</span>
+                    <button class="directions-close-btn">&times;</button>
+                </div>
+                <div class="directions-summary">
+                    <strong>Quãng đường:</strong> ${distance} km <br>
+                    <strong>Thời gian:</strong> ${time} phút
+                </div>
+                ${stepsHtml}
+            `;
+            panel.classList.add('active');
+
+            panel.querySelector('.directions-close-btn').addEventListener('click', () => {
+                panel.classList.remove('active');
+                if (routingLayer) {
+                    mapInstance.removeLayer(routingLayer);
+                }
+            });
+        }
+
+        /**
+         * Fetches and displays a route from a start to an end point.
+         */
+        async function getDirections(start, end) {
+            const panel = document.getElementById('directions-panel');
+            panel.innerHTML = '<div class="directions-header">Đang tìm đường...</div>';
+            panel.classList.add('active');
+
+            const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson&steps=true`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.code !== 'Ok') throw new Error('Không tìm thấy đường đi.');
+
+                const route = data.routes[0];
+                const routeLine = L.geoJSON(route.geometry, { style: { color: '#1e90ff', weight: 5 } });
+
+                if (routingLayer) {
+                    mapInstance.removeLayer(routingLayer);
+                }
+                routingLayer = routeLine;
+                mapInstance.addLayer(routingLayer);
+                mapInstance.fitBounds(routingLayer.getBounds().pad(0.2));
+
+                renderItinerary(route);
+
+            } catch (error) {
+                panel.innerHTML = `<div class="directions-header">Lỗi: ${error.message}</div>`;
+                console.error("Lỗi tìm đường:", error);
+            }
+        }
+
+        function initGlobalMap() {
+            if (!mapInitialized) {
+                mapInstance = L.map('map').setView([16.047079, 108.206230], 6);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(mapInstance);
+
+                // Add event listener for directions button clicks
+                mapInstance.on('popupopen', (e) => {
+                    const popupNode = e.popup.getElement();
+                    const directionsBtn = popupNode.querySelector('.directions-btn');
+                    if (directionsBtn) {
+                        directionsBtn.addEventListener('click', (event) => {
+                            const destLat = event.target.dataset.lat;
+                            const destLng = event.target.dataset.lon;
+                            
+                            navigator.geolocation.getCurrentPosition(
+                                (position) => {
+                                    const start = { lat: position.coords.latitude, lng: position.coords.longitude };
+                                    const end = { lat: parseFloat(destLat), lng: parseFloat(destLng) };
+                                    getDirections(start, end);
+                                },
+                                () => {
+                                    alert('Không thể lấy vị trí hiện tại của bạn để tìm đường.');
+                                }
+                            );
+                        });
+                    }
+                });
+
+                mapInitialized = true;
+            }
+        }
+
+        function setupLocateButton() {
+            const locateBtn = document.getElementById('locate-btn');
+            locateBtn.addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    alert('Trình duyệt của bạn không hỗ trợ định vị.');
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+
+                        mapInstance.flyTo([lat, lng], 16);
+
+                        // Remove old marker
+                        if (userLocationMarker) {
+                            mapInstance.removeLayer(userLocationMarker);
+                        }
+
+                        // Add new marker with a special icon
+                        const userIcon = L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div class="marker-icon" style="background:#1e90ff; width:24px; height:24px;"><i class="fas fa-user"></i></div>`,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        });
+
+                        userLocationMarker = L.marker([lat, lng], { icon: userIcon })
+                            .addTo(mapInstance)
+                            .bindPopup('<b>Vị trí của bạn</b>')
+                            .openPopup();
+                    },
+                    (error) => {
+                        let errorMsg = 'Không thể lấy vị trí của bạn.';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg = "Bạn đã từ chối yêu cầu truy cập vị trí.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg = "Thông tin vị trí không có sẵn. (Lưu ý: Host của bạn cần có HTTPS để tính năng này hoạt động ổn định.)";
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg = "Yêu cầu lấy vị trí đã hết hạn.";
+                                break;
+                        }
+                        alert(errorMsg);
+                    },
+                    { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 } // Đổi thành false để tăng khả năng thành công
+                );
+            });
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.nav-btn[data-section="${sectionId}"]`).classList.add('active');
+
+            if (mapInitialized) {
+                mapInstance.invalidateSize();
+            }
+
+            // Call specific initialization functions for each section, passing the map instance
+            if (sectionId === 'add-heritage-container') {
+                initAddHeritage(mapInstance);
+            } else if (sectionId === 'view-heritage-container') {
+                initViewHeritages(mapInstance);
+            } else if (sectionId === 'search-heritage-container') {
+                initSearchHeritages(mapInstance);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initGlobalMap();
+            setupLocateButton(); // Set up the new button
+
+            document.querySelectorAll('.nav-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const sectionId = this.dataset.section;
+                    showSection(sectionId);
+                });
+            });
+
+            showSection('add-heritage-container');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,454 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thống kê Di tích Lịch sử</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .navbar-brand {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 80px auto 20px;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .chart-section {
+            margin-bottom: 40px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: 400px !important;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(102, 126, 234, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            color: white;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .status-message {
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            border: 1px solid transparent;
+            display: none;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #fca5a5;
+        }
+
+        @media (max-width: 600px) {
+            .navbar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .navbar-links {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">Quản lý Di tích Lịch sử</div>
+        <div class="navbar-links">
+            <a href="index.html" class="nav-link"><i class="fas fa-arrow-left"></i> Quay lại trang chính</a>
+        </div>
+    </nav>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Đang tải dữ liệu thống kê...</div>
+    </div>
+
+    <div class="container">
+        <h1>Thống kê Di tích Lịch sử</h1>
+        <div id="errorMessage" class="status-message status-error"></div>
+
+        <div class="chart-section">
+            <div class="chart-title">Số lượng di tích theo loại hình</div>
+            <canvas id="typeChart"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-title">Số lượng di tích theo thời kỳ lịch sử</div>
+            <canvas id="periodChart"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-title">Số lượng di tích theo tôn giáo</div>
+            <canvas id="religionChart"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-title">Số lượng di tích theo tỉnh/thành phố</div>
+            <canvas id="provinceChart"></canvas>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://xyatgkreuaoouejjyzrj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YXRna3JldWFvb3Vlamp5enJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxNTMwMjAsImV4cCI6MjA3NTcyOTAyMH0.P5qTKVjwfaujfpoO0t1j3T5VDYpMwEuhFQhaQyjv5FY';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let typeChart, periodChart, religionChart, provinceChart;
+
+        function initCharts() {
+            const typeCtx = document.getElementById('typeChart').getContext('2d');
+            const periodCtx = document.getElementById('periodChart').getContext('2d');
+            const religionCtx = document.getElementById('religionChart').getContext('2d');
+            const provinceCtx = document.getElementById('provinceChart').getContext('2d');
+
+            typeChart = new Chart(typeCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Số lượng di tích',
+                        data: [],
+                        backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Số lượng' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Loại hình di tích' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            periodChart = new Chart(periodCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Số lượng di tích',
+                        data: [],
+                        backgroundColor: 'rgba(244, 114, 182, 0.7)',
+                        borderColor: 'rgba(244, 114, 182, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Số lượng' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Thời kỳ lịch sử' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            religionChart = new Chart(religionCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Số lượng di tích',
+                        data: [],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Số lượng' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Tôn giáo' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            provinceChart = new Chart(provinceCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Số lượng di tích',
+                        data: [],
+                        backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                        borderColor: 'rgba(245, 158, 11, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Số lượng' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Tỉnh/Thành phố' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        async function loadStatistics() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const errorMessage = document.getElementById('errorMessage');
+
+            try {
+                const { data: heritages, error } = await supabase
+                    .from('di_tich')
+                    .select(`
+                        loai_hinh:loai_hinh_id(ten_loai),
+                        thoi_ky:thoi_ky_id(ten_thoi_ky),
+                        ton_giao:ton_giao_id(ten_ton_giao),
+                        xa_phuong:xa_id(tinh_tp:tinh_id(ten))
+                    `);
+
+                if (error) throw error;
+
+                updateCharts(heritages);
+                loadingOverlay.classList.add('hidden');
+            } catch (error) {
+                console.error('Lỗi khi tải dữ liệu thống kê:', error);
+                errorMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Lỗi: ${error.message}`;
+                errorMessage.style.display = 'block';
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        function updateCharts(heritages) {
+            // Thống kê theo loại hình
+            const typeCounts = heritages.reduce((acc, curr) => {
+                const typeName = curr.loai_hinh?.ten_loai || 'Không xác định';
+                acc[typeName] = (acc[typeName] || 0) + 1;
+                return acc;
+            }, {});
+            typeChart.data.labels = Object.keys(typeCounts);
+            typeChart.data.datasets[0].data = Object.values(typeCounts);
+            typeChart.update();
+
+            // Thống kê theo thời kỳ
+            const periodCounts = heritages.reduce((acc, curr) => {
+                const periodName = curr.thoi_ky?.ten_thoi_ky || 'Không xác định';
+                acc[periodName] = (acc[periodName] || 0) + 1;
+                return acc;
+            }, {});
+            periodChart.data.labels = Object.keys(periodCounts);
+            periodChart.data.datasets[0].data = Object.values(periodCounts);
+            periodChart.update();
+
+            // Thống kê theo tôn giáo
+            const religionCounts = heritages.reduce((acc, curr) => {
+                const religionName = curr.ton_giao?.ten_ton_giao || 'Không xác định';
+                acc[religionName] = (acc[religionName] || 0) + 1;
+                return acc;
+            }, {});
+            religionChart.data.labels = Object.keys(religionCounts);
+            religionChart.data.datasets[0].data = Object.values(religionCounts);
+            religionChart.update();
+
+            // Thống kê theo tỉnh/thành phố
+            const provinceCounts = heritages.reduce((acc, curr) => {
+                const provinceName = curr.xa_phuong?.tinh_tp?.ten || 'Không xác định';
+                acc[provinceName] = (acc[provinceName] || 0) + 1;
+                return acc;
+            }, {});
+            provinceChart.data.labels = Object.keys(provinceCounts);
+            provinceChart.data.datasets[0].data = Object.values(provinceCounts);
+            provinceChart.update();
+        }
+
+        function subscribeToHeritageChanges() {
+            supabase
+                .channel('di_tich_changes')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'di_tich' }, async (payload) => {
+                    const { new: newHeritage } = payload;
+                    const { data, error } = await supabase
+                        .from('di_tich')
+                        .select(`
+                            loai_hinh:loai_hinh_id(ten_loai),
+                            thoi_ky:thoi_ky_id(ten_thoi_ky),
+                            ton_giao:ton_giao_id(ten_ton_giao),
+                            xa_phuong:xa_id(tinh_tp:tinh_id(ten))
+                        `)
+                        .eq('id', newHeritage.id)
+                        .single();
+
+                    if (error) {
+                        console.error('Lỗi khi tải di tích mới:', error);
+                        return;
+                    }
+
+                    const { data: heritages, error: fetchError } = await supabase
+                        .from('di_tich')
+                        .select(`
+                            loai_hinh:loai_hinh_id(ten_loai),
+                            thoi_ky:thoi_ky_id(ten_thoi_ky),
+                            ton_giao:ton_giao_id(ten_ton_giao),
+                            xa_phuong:xa_id(tinh_tp:tinh_id(ten))
+                        `);
+
+                    if (fetchError) {
+                        console.error('Lỗi khi tải lại dữ liệu:', fetchError);
+                        return;
+                    }
+
+                    updateCharts(heritages);
+                })
+                .subscribe();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            loadStatistics();
+            subscribeToHeritageChanges();
+        });
+    </script>
+</body>
+</html>
